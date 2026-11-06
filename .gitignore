@@ -1,0 +1,19 @@
+# Environment variables (bot token)
+.env
+
+# Temporary media files and videos
+temp_media/
+*.mp4
+*.avi
+*.mov
+temp_test/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# IDE
+.vscode/
+.idea/
