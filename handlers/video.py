@@ -2,16 +2,16 @@ import os
 import asyncio
 from aiogram import Router, F, Bot
 from aiogram.types import CallbackQuery, FSInputFile
-from session_manager import session_manager
+from session_manager import session_manager, ROMANTIC_TRACKS
 from video_maker import render_slideshow
 from keyboards import (
     get_control_keyboard,
+    get_music_keyboard,
     get_style_keyboard,
     get_aspect_keyboard,
     get_duration_keyboard,
     STYLE_NAMES,
-    ASPECT_NAMES,
-    DURATION_NAMES
+    ASPECT_NAMES
 )
 
 router = Router()
@@ -22,17 +22,17 @@ async def cb_render_video(callback: CallbackQuery, bot: Bot):
     user_id = callback.from_user.id
     session = session_manager.get(user_id)
 
-    if len(session.photos) < 2:
+    if session.total_count == 0:
         await callback.answer(
-            "⚠️ Video yaratish uchun kamida 2 ta rasm yuborishingiz kerak!",
+            "⚠️ Video yaratish uchun kamida 1 ta rasm yoki video yuborishingiz kerak!",
             show_alert=True
         )
         return
 
     await callback.answer()
     status_msg = await callback.message.answer(
-        "⏳ <b>Video montaj qilinmoqda...</b>\n"
-        "<i>Kadrlar birlashtirilmoqda, effektlar qo'llanmoqda va MP4 formatga o'tkazilmoqda. "
+        "⏳ <b>Romantik video montaj qilinmoqda...</b>\n"
+        "<i>Rasmlar va videolar birlashtirilmoqda, o'tish effektlari va romantik musiqa ulanmoqda. "
         "Biroz kuting...</i>",
         parse_mode="HTML"
     )
@@ -40,12 +40,12 @@ async def cb_render_video(callback: CallbackQuery, bot: Bot):
     output_file = str(session.user_dir / f"result_{user_id}.mp4")
 
     try:
-        # Run CPU-intensive rendering in thread pool to prevent blocking asyncio
+        # Run rendering in thread pool to prevent blocking asyncio
         await asyncio.to_thread(
             render_slideshow,
-            image_paths=list(session.photos),
+            media_items=list(session.media_items),
             output_path=output_file,
-            audio_path=session.audio,
+            audio_path=session.effective_audio_path,
             aspect_ratio=session.aspect,
             style=session.style,
             slide_duration=session.duration,
@@ -53,14 +53,16 @@ async def cb_render_video(callback: CallbackQuery, bot: Bot):
             fps=30
         )
 
+        music_name = "🎧 Shaxsiy musiqa" if session.music_choice == "custom" else ROMANTIC_TRACKS.get(session.music_choice, "Romantik")
+
         caption = (
-            f"🎬 <b>Sizning videongiz tayyor bo'ldi!</b>\n\n"
-            f"🖼 <b>Rasmlar soni:</b> {len(session.photos)} ta\n"
+            f"🎬 <b>Sizning romantik videongiz tayyor bo'ldi! ✨</b>\n\n"
+            f"📸 <b>Rasmlar:</b> {session.photo_count} ta\n"
+            f"🎥 <b>Videolar:</b> {session.video_count} ta\n"
+            f"🎵 <b>Musiqa:</b> {music_name}\n"
             f"🎨 <b>Uslub:</b> {STYLE_NAMES.get(session.style, session.style)}\n"
-            f"📐 <b>O'lcham:</b> {ASPECT_NAMES.get(session.aspect, session.aspect)}\n"
-            f"⏱ <b>Kadr vaqti:</b> {session.duration}s\n"
-            f"🎵 <b>Musiqa:</b> {'Bor' if session.audio else 'Yoq'}\n\n"
-            f"<i>Yangi video yasash uchun shunchaki yana yangi rasmlar yuboring!</i>"
+            f"📐 <b>O'lcham:</b> {ASPECT_NAMES.get(session.aspect, session.aspect)}\n\n"
+            f"<i>Yana yangi video yaratish uchun shunchaki yangi rasmlar yoki videolar yuboring!</i>"
         )
 
         video_input = FSInputFile(output_file)
@@ -76,7 +78,6 @@ async def cb_render_video(callback: CallbackQuery, bot: Bot):
     except Exception as e:
         await status_msg.edit_text(f"❌ Videoni tayyorlashda xatolik yuz berdi:\n<code>{str(e)}</code>", parse_mode="HTML")
     finally:
-        # Clean up temporary result video file
         if os.path.exists(output_file):
             try:
                 os.remove(output_file)
@@ -84,14 +85,38 @@ async def cb_render_video(callback: CallbackQuery, bot: Bot):
                 pass
 
 
+@router.callback_query(F.data == "menu_music")
+async def cb_menu_music(callback: CallbackQuery):
+    session = session_manager.get(callback.from_user.id)
+    await callback.message.edit_text(
+        "🎵 <b>Videoga romantik fon musiqasini tanlang:</b>\n\n"
+        "• <b>🌹 Mayin Pianino:</b> Hissiyotli va mayin pianino ohangi.\n"
+        "• <b>💕 Akustik Sevgi:</b> Chiroyli va romantik gitara ohangi.\n"
+        "• <b>✨ Sokin Romance:</b> Sehrli va sokin kechki romantika.\n"
+        "• <b>🎧 Shaxsiy:</b> O'zingiz yoqtirgan MP3 yoki ovoz yuborishingiz mumkin.",
+        reply_markup=get_music_keyboard(session.music_choice, session.custom_audio is not None),
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("set_music:"))
+async def cb_set_music(callback: CallbackQuery):
+    choice = callback.data.split(":")[1]
+    session = session_manager.get(callback.from_user.id)
+    session.music_choice = choice
+    await callback.answer("✅ Musiqa tanlandi!")
+    await show_main_panel(callback)
+
+
 @router.callback_query(F.data == "menu_style")
 async def cb_menu_style(callback: CallbackQuery):
     session = session_manager.get(callback.from_user.id)
     await callback.message.edit_text(
         "🎨 <b>Video uslubini (o'tish effektini) tanlang:</b>\n\n"
-        "• <b>Kino (Ken Burns):</b> Sekin yaqinlashish va crossfade, juda chiroyli va professional ko'rinish.\n"
-        "• <b>Yumshoq Crossfade:</b> Rasmlar bir-biriga muloyim erib o'tadi.\n"
-        "• <b>Slayd:</b> Rasmlar yon tomonga siljib almashadi.\n"
+        "• <b>Kino (Ken Burns):</b> Sekin yaqinlashish va crossfade, romantik va professional ko'rinish.\n"
+        "• <b>Yumshoq Crossfade:</b> Rasmlar va videolar bir-biriga muloyim erib o'tadi.\n"
+        "• <b>Slayd:</b> Yon tomonga silliq siljish.\n"
         "• <b>Dinamik Flash:</b> Qisqa oq chaqnash bilan ritmik o'tish.",
         reply_markup=get_style_keyboard(session.style),
         parse_mode="HTML"
@@ -135,7 +160,7 @@ async def cb_set_aspect(callback: CallbackQuery):
 async def cb_menu_duration(callback: CallbackQuery):
     session = session_manager.get(callback.from_user.id)
     await callback.message.edit_text(
-        "⏱ <b>Har bir rasm ekranda qancha vaqt turishini tanlang:</b>",
+        "⏱ <b>Har bir rasm/video parchasi ekranda qancha vaqt turishini tanlang:</b>",
         reply_markup=get_duration_keyboard(str(session.duration)),
         parse_mode="HTML"
     )
@@ -151,14 +176,6 @@ async def cb_set_duration(callback: CallbackQuery):
     await show_main_panel(callback)
 
 
-@router.callback_query(F.data == "menu_audio_info")
-async def cb_audio_info(callback: CallbackQuery):
-    await callback.answer(
-        "🎵 Videoga musiqa qo'shish uchun shunchaki botga istalgan MP3 musiqa yoki ovozli xabar (voice) yuboring!",
-        show_alert=True
-    )
-
-
 @router.callback_query(F.data == "menu_back")
 async def cb_menu_back(callback: CallbackQuery):
     await show_main_panel(callback)
@@ -171,29 +188,30 @@ async def cb_clear(callback: CallbackQuery):
     session.clear()
     await callback.answer("🗑 Tozalandi!", show_alert=True)
     await callback.message.edit_text(
-        "🗑 Barcha rasmlar va musiqa tozalandi.\n\n"
-        "Yangi video yaratish uchun menga yangi rasmlar yuboring!"
+        "🗑 Barcha yuklangan fayllar tozalandi.\n\n"
+        "Yangi romantik video yaratish uchun menga rasmlar yoki videolar yuboring!"
     )
 
 
 async def show_main_panel(callback: CallbackQuery):
     session = session_manager.get(callback.from_user.id)
-    photo_count = len(session.photos)
-    has_audio = session.audio is not None
+    music_name = "🎧 Shaxsiy musiqa" if session.music_choice == "custom" else ROMANTIC_TRACKS.get(session.music_choice, "🌹 Mayin Pianino")
 
-    audio_text = "✅ Musiqa biriktirilgan" if has_audio else "❌ Musiqa yo'q (ixtiyoriy: MP3 yuborishingiz mumkin)"
     text = (
-        f"📸 <b>Yuklangan rasmlar:</b> {photo_count} ta\n"
-        f"🎵 <b>Audio:</b> {audio_text}\n\n"
-        f"⚙️ <i>Pastdagi tugmalar orqali videoning ko'rinishini va parametrlarini sozlashingiz mumkin. "
-        f"Tayyor bo'lgach, «🎬 Videoni yaratish» tugmasini bosing!</i>"
+        f"🎬 <b>Yuklangan medialar:</b>\n"
+        f"• 📸 Rasmlar: {session.photo_count} ta\n"
+        f"• 🎥 Videolar: {session.video_count} ta\n"
+        f"• 🎵 Musiqa: <b>{music_name}</b>\n\n"
+        f"<i>Yana rasm yoki video yuborishingiz mumkin. "
+        f"Pastdagi tugmalar orqali sozlamalarni o'zgartiring va «🎬 Videoni yaratish» tugmasini bosing!</i>"
     )
+
     keyboard = get_control_keyboard(
         style=session.style,
         aspect=session.aspect,
         duration=str(session.duration),
-        photo_count=photo_count,
-        has_audio=has_audio
+        total_count=session.total_count,
+        music_choice=session.music_choice,
+        has_custom_audio=(session.custom_audio is not None)
     )
     await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
-
