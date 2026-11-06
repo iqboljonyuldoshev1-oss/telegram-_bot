@@ -1,5 +1,6 @@
 from .inline import (
     get_control_keyboard,
+    get_music_keyboard,
     get_style_keyboard,
     get_aspect_keyboard,
     get_duration_keyboard,
@@ -10,6 +11,7 @@ from .inline import (
 
 __all__ = [
     "get_control_keyboard",
+    "get_music_keyboard",
     "get_style_keyboard",
     "get_aspect_keyboard",
     "get_duration_keyboard",
@@ -17,4 +19,3 @@ __all__ = [
     "ASPECT_NAMES",
     "DURATION_NAMES"
 ]
-

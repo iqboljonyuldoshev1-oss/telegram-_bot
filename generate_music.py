@@ -165,3 +165,4 @@ def generate_romantic_tracks(output_dir: str):
 
 if __name__ == "__main__":
     generate_romantic_tracks("assets/music")
+
