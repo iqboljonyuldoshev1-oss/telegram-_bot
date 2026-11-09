@@ -8,7 +8,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
 from config import BOT_TOKEN
-from handlers import start_router, media_router, video_router
+from handlers import start_router, media_router, video_router, youtube_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -58,6 +58,7 @@ async def main():
 
     # Register routers
     dp.include_router(start_router)
+    dp.include_router(youtube_router)
     dp.include_router(video_router)
     dp.include_router(media_router)
 

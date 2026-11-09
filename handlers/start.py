@@ -13,12 +13,15 @@ async def cmd_start(message: Message):
 
     text = (
         "👋 <b>Assalomu alaykum!</b>\n\n"
-        "Men bir nechta rasmlar va videolarni <b>bir-biriga ulab, ajoyib video</b> tayyorlab beruvchi botman! 🎬✨\n\n"
-        "🌟 <b>Qanday ishlaydi:</b>\n"
-        "1️⃣ Menga <b>bir nechta rasm</b> (yoki video) yuboring (masalan: 3 ta, 5 ta, 10 ta albom qilib).\n"
-        "2️⃣ Bot barcha yuborilgan rasmlarni qabul qilib, ularni bir-biriga ulaydi va foniga yoqimli romantik musiqa qo'shib video qilib beradi!\n"
-        "3️⃣ Tayyor videoni qabul qilasiz va xohlasangiz uslubini, musiqasini yoki o'lchamini bitta tugma bilan o'zgartirishingiz mumkin.\n\n"
-        "🚀 <b>Boshlash uchun:</b> Menga hoziroq bir nechta rasm yuboring!"
+        "Men <b>YouTube videolarini yuklovchi</b> va <b>rasmlardan video yaratuvchi</b> universal botman! 🎬⚡️\n\n"
+        "🚀 <b>Asosiy imkoniyatlar:</b>\n\n"
+        "1️⃣ <b>YouTube dan video yuklash (@yuklaydi_bot kabi):</b>\n"
+        "• Menga istalgan <b>YouTube</b> yoki <b>YouTube Shorts</b> havolasini (linkini) yuboring.\n"
+        "• Bot videoni eng yuqori sifatda bir necha soniyada sizga tashlab beradi!\n\n"
+        "2️⃣ <b>Rasmlardan video tayyorlash:</b>\n"
+        "• Menga bir nechta rasm yuboring (albom qilib).\n"
+        "• Barcha rasmlaringiz bir-biriga ulanib, romantik musiqa bilan chiroyli video montaj qilinadi!\n\n"
+        "<i>Boshlash uchun YouTube havolasini yoki rasmlaringizni yuboring!</i>"
     )
     await message.answer(text, parse_mode="HTML")
 
@@ -26,11 +29,12 @@ async def cmd_start(message: Message):
 @router.message(Command("help"))
 async def cmd_help(message: Message):
     text = (
-        "📖 <b>Qo'llanma:</b>\n\n"
-        "• <b>Bir nechta rasm yuborish:</b> Galereyangizdan bir nechta (kamida 2 ta) rasmni tanlab, bitta albom qilib botga yuboring.\n"
-        "• Bot barcha rasmlarni avtomatik bir-biriga ulab videoni tayyorlaydi.\n"
-        "• Agar xohlasangiz, o'zingiz yoqtirgan MP3 musiqani ham yuborishingiz mumkin.\n\n"
-        "🔄 Yangitdan boshlash uchun: /reset"
+        "📖 <b>Botdan foydalanish:</b>\n\n"
+        "📥 <b>YouTube yuklash:</b>\n"
+        "Istalgan YouTube videosining havolasini (masalan: <code>https://youtu.be/...</code> yoki Shorts) yuboring. Bot uni yuklab beradi.\n\n"
+        "🎬 <b>Video yasash:</b>\n"
+        "2 yoki undan ortiq rasmlarni tanlab bitta albom qilib tashlang. Bot ularni avtomatik ulab beradi.\n\n"
+        "🔄 Yangitdan boshlash: /reset"
     )
     await message.answer(text, parse_mode="HTML")
 
@@ -39,4 +43,4 @@ async def cmd_help(message: Message):
 async def cmd_reset(message: Message):
     user_id = message.from_user.id
     session_manager.get(user_id).clear()
-    await message.answer("🗑 Barcha yuklangan fayllar tozalandi. Yangi rasmlarni yuborishingiz mumkin.")
+    await message.answer("🗑 Barcha yuklangan fayllar tozalandi. Yangi havola yoki rasmlarni yuborishingiz mumkin.")
