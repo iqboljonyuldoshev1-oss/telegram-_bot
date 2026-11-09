@@ -1,11 +1,13 @@
 import os
 import re
 import asyncio
+import logging
 from aiogram import Router, F, Bot
 from aiogram.types import Message, FSInputFile
 from youtube_downloader import is_downloadable_url, extract_url, download_video_link
 from session_manager import session_manager
 
+logger = logging.getLogger(__name__)
 router = Router()
 
 TELEGRAM_LINK_PATTERN = re.compile(r'https?://t\.me/([a-zA-Z0-9_]+)/(\d+)', re.IGNORECASE)
@@ -33,12 +35,11 @@ async def handle_telegram_link(message: Message, bot: Bot):
     post_id = int(match.group(2))
 
     status_msg = await message.reply(
-        "⏳ <b>Telegram videosi yuklanmoqda...</b>\n<i>Iltimos, kuting...</i>",
+        "⏳ <b>Telegram videosi ochilmoqda...</b>\n<i>Iltimos, kuting...</i>",
         parse_mode="HTML"
     )
 
     try:
-        # Copy message from public Telegram channel directly without forward tag
         await bot.copy_message(
             chat_id=message.chat.id,
             from_chat_id=f"@{channel_username}",
@@ -52,6 +53,7 @@ async def handle_telegram_link(message: Message, bot: Bot):
             pass
 
     except Exception as e:
+        logger.error(f"Telegram link error: {e}")
         error_text = str(e).lower()
         if "chat not found" in error_text or "message not found" in error_text:
             await status_msg.edit_text(
@@ -95,6 +97,7 @@ async def handle_forwarded_media(message: Message, bot: Bot):
         except Exception:
             pass
     except Exception as e:
+        logger.error(f"Forwarded media error: {e}")
         await status_msg.edit_text(f"❌ Xatolik yuz berdi: {str(e)[:150]}")
 
 
@@ -110,7 +113,7 @@ async def handle_media_link(message: Message, bot: Bot):
 
     status_msg = await message.reply(
         "⏳ <b>Video yuklab olinmoqda...</b>\n"
-        "<i>Biroz kuting, video tayyorlanib sizga yuboriladi...</i>",
+        "<i>Biroz kuting, video tayyorlanmoqda...</i>",
         parse_mode="HTML"
     )
 
@@ -134,12 +137,22 @@ async def handle_media_link(message: Message, bot: Bot):
         )
 
         video_input = FSInputFile(file_path)
-        await message.reply_video(
-            video=video_input,
-            caption=caption,
-            parse_mode="HTML",
-            supports_streaming=True
-        )
+        try:
+            # First try send as playable video
+            await message.reply_video(
+                video=video_input,
+                caption=caption,
+                parse_mode="HTML",
+                supports_streaming=True
+            )
+        except Exception as vid_err:
+            logger.warning(f"send_video failed, falling back to send_document: {vid_err}")
+            # Fallback to send as document
+            await message.reply_document(
+                document=video_input,
+                caption=caption,
+                parse_mode="HTML"
+            )
 
         try:
             await status_msg.delete()
@@ -147,11 +160,11 @@ async def handle_media_link(message: Message, bot: Bot):
             pass
 
     except Exception as e:
+        logger.error(f"Download video error: {e}", exc_info=True)
         error_msg = str(e)
         await status_msg.edit_text(
-            f"❌ <b>Videoni yuklab bo'lmadi!</b>\n"
-            f"Havola to'g'riligini yoki video yopiq (private) emasligini tekshiring.\n\n"
-            f"<i>Sabab: {error_msg[:120]}</i>",
+            f"❌ <b>Videoni yuklab bo'lmadi!</b>\n\n"
+            f"<i>Xatolik: {error_msg[:150]}</i>",
             parse_mode="HTML"
         )
     finally:
