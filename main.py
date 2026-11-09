@@ -1,3 +1,5 @@
+print(">>> MAIN.PY STARTING...", flush=True)
+
 import asyncio
 import logging
 import os
@@ -12,7 +14,8 @@ from handlers import start_router, media_router, video_router, youtube_router
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+    stream=sys.stdout
 )
 logger = logging.getLogger(__name__)
 
@@ -62,6 +65,7 @@ async def main():
     dp.include_router(video_router)
     dp.include_router(media_router)
 
+    print(f">>> STARTING POLLING FOR BOT: {bot}", flush=True)
     logger.info("🤖 Bot muvaffaqiyatli ishga tushirildi! Rasmlardan video yaratishga tayyor...")
 
     web_runner = await start_web_server()
