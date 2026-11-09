@@ -2,7 +2,7 @@ import os
 import asyncio
 from aiogram import Router, F, Bot
 from aiogram.types import Message, FSInputFile
-from youtube_downloader import is_youtube_url, extract_youtube_url, download_youtube_video
+from youtube_downloader import is_downloadable_url, extract_url, download_video_link
 from session_manager import session_manager
 
 router = Router()
@@ -19,9 +19,9 @@ def format_duration(seconds: int) -> str:
     return f"{mins:02d}:{secs:02d}"
 
 
-@router.message(F.text.func(lambda text: is_youtube_url(text)))
-async def handle_youtube_link(message: Message, bot: Bot):
-    url = extract_youtube_url(message.text)
+@router.message(F.text.func(lambda text: is_downloadable_url(text)))
+async def handle_media_link(message: Message, bot: Bot):
+    url = extract_url(message.text)
     if not url:
         return
 
@@ -29,27 +29,27 @@ async def handle_youtube_link(message: Message, bot: Bot):
     session = session_manager.get(user_id)
 
     status_msg = await message.reply(
-        "⏳ <b>YouTube videosi yuklab olinmoqda...</b>\n"
-        "<i>Biroz kuting (huddi @yuklaydi_bot kabi tezkor yuklanadi)...</i>",
+        "⏳ <b>Video yuklab olinmoqda...</b>\n"
+        "<i>Biroz kuting, hozir video sizga yuboriladi...</i>",
         parse_mode="HTML"
     )
 
     try:
         data = await asyncio.to_thread(
-            download_youtube_video,
+            download_video_link,
             url=url,
             download_dir=str(session.user_dir)
         )
 
         file_path = data["file_path"]
-        title = data.get("title", "YouTube Video")
-        channel = data.get("channel", "YouTube")
+        title = data.get("title", "Video")
+        channel = data.get("channel", "Yuklandi")
         duration_str = format_duration(data.get("duration", 0))
 
         caption = (
             f"🎬 <b>{title}</b>\n\n"
             f"⏱ <b>Davomiyligi:</b> {duration_str}\n"
-            f"👤 <b>Kanal:</b> {channel}\n\n"
+            f"👤 <b>Manba/Kanal:</b> {channel}\n\n"
             f"📥 <i><b>_yuklaydi_bot</b> orqali yuklab olindi.</i>"
         )
 
@@ -61,28 +61,29 @@ async def handle_youtube_link(message: Message, bot: Bot):
             supports_streaming=True
         )
 
-        await status_msg.delete()
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
 
     except Exception as e:
         error_msg = str(e)
-        if "max_filesize" in error_msg.lower() or "file is too large" in error_msg.lower():
+        if "max_filesize" in error_msg.lower() or "50 mb" in error_msg.lower() or "large" in error_msg.lower():
             await status_msg.edit_text(
-                "❌ <b>Kechirasiz, video hajmi juda katta!</b>\n"
-                "Telegram botlari orqali maksimal 50 MB gacha bo'lgan videolarni yuklash mumkin.",
+                "❌ <b>Video hajmi juda katta!</b>\n"
+                "Telegram botlari orqali maksimal 50 MB gacha bo'lgan videolarni yuborish mumkin.",
                 parse_mode="HTML"
             )
         else:
             await status_msg.edit_text(
                 f"❌ <b>Videoni yuklab bo'lmadi!</b>\n"
-                f"Havola to'g'riligini yoki video yopiq (private) emasligini tekshiring.\n"
-                f"<code>Xatolik: {error_msg[:150]}</code>",
+                f"Havola to'g'riligini yoki video yopiq (private) emasligini tekshiring.\n\n"
+                f"<i>Sabab: {error_msg[:120]}</i>",
                 parse_mode="HTML"
             )
     finally:
-        # Clean up downloaded file
         if 'data' in locals() and os.path.exists(data.get("file_path", "")):
             try:
                 os.remove(data["file_path"])
             except Exception:
                 pass
-
