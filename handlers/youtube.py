@@ -49,7 +49,7 @@ async def handle_media_link(message: Message, bot: Bot):
         caption = (
             f"🎬 <b>{title}</b>\n\n"
             f"⏱ <b>Davomiyligi:</b> {duration_str}\n"
-            f"👤 <b>Manba/Kanal:</b> {channel}\n\n"
+            f"👤 <b>Kanal/Manba:</b> {channel}\n\n"
             f"📥 <i><b>_yuklaydi_bot</b> orqali yuklab olindi.</i>"
         )
 
@@ -68,10 +68,11 @@ async def handle_media_link(message: Message, bot: Bot):
 
     except Exception as e:
         error_msg = str(e)
-        if "max_filesize" in error_msg.lower() or "50 mb" in error_msg.lower() or "large" in error_msg.lower():
+        if "50mb" in error_msg.lower() or "50 mb" in error_msg.lower() or "juda uzun" in error_msg.lower():
             await status_msg.edit_text(
-                "❌ <b>Video hajmi juda katta!</b>\n"
-                "Telegram botlari orqali maksimal 50 MB gacha bo'lgan videolarni yuborish mumkin.",
+                "❌ <b>Kechirasiz, video davomiyligi juda uzun!</b>\n"
+                "Telegram botlari orqali maksimal 50 MB gacha bo'lgan videolarni yuborish mumkin.\n"
+                "<i>Qisqaroq video yoki YouTube Shorts havolasini yuborib ko'ring.</i>",
                 parse_mode="HTML"
             )
         else:

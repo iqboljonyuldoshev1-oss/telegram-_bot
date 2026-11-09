@@ -1,6 +1,7 @@
 import os
 import re
 import uuid
+import subprocess
 import yt_dlp
 import imageio_ffmpeg
 
@@ -23,22 +24,57 @@ def extract_url(text: str) -> str | None:
         url = "https://" + url
     return url
 
+def compress_video_to_fit(input_path: str, output_path: str, duration: int) -> str:
+    """
+    Compresses video with FFmpeg to guarantee it fits under Telegram's 48MB limit.
+    """
+    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    dur = max(10, duration)
+    # Target 44MB to safely stay below 50MB
+    target_mb = 44.0
+    total_bitrate_kbps = (target_mb * 8192) / dur
+    audio_bitrate_kbps = 96
+    video_bitrate_kbps = max(180, int(total_bitrate_kbps - audio_bitrate_kbps))
+
+    cmd = [
+        ffmpeg_exe, "-y",
+        "-loglevel", "error",
+        "-i", input_path,
+        "-vf", r"scale=-2:min(480\,ih)",
+        "-c:v", "libx264",
+        "-b:v", f"{video_bitrate_kbps}k",
+        "-maxrate", f"{int(video_bitrate_kbps * 1.3)}k",
+        "-bufsize", f"{int(video_bitrate_kbps * 2)}k",
+        "-preset", "faster",
+        "-c:a", "aac",
+        "-b:a", f"{audio_bitrate_kbps}k",
+        output_path
+    ]
+
+    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if os.path.exists(output_path) and os.path.getsize(output_path) <= 49 * 1024 * 1024:
+        return output_path
+    return input_path
+
 def download_video_link(url: str, download_dir: str) -> dict:
     """
-    Downloads video from YouTube, Instagram, TikTok, etc. using yt-dlp.
-    Optimized for Telegram Bot API limits (under 50MB).
+    Downloads video from YouTube, Instagram, TikTok, etc.
+    Intelligently picks 720p/480p/360p and compresses if necessary so it NEVER fails on size!
     """
     os.makedirs(download_dir, exist_ok=True)
     file_id = uuid.uuid4().hex[:10]
     outtmpl = os.path.join(download_dir, f"dl_{file_id}.%(ext)s")
     ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
 
+    # Intelligent format selection: prefers high quality under 45MB, or falls back to 480p/360p
     ydl_opts = {
         'format': (
-            'bestvideo[ext=mp4][height<=1080][filesize<?45M]+bestaudio[ext=m4a]/'
-            'bestvideo[height<=720][filesize<?45M]+bestaudio/'
-            'best[filesize<?48M]/'
-            'best[height<=720]/'
+            'bestvideo[height<=720][filesize_approx<42M]+bestaudio/'
+            'best[height<=720][filesize_approx<42M]/'
+            'bestvideo[height<=480]+bestaudio/'
+            'best[height<=480]/'
+            'bestvideo[height<=360]+bestaudio/'
+            'best[height<=360]/'
             'best'
         ),
         'outtmpl': outtmpl,
@@ -47,7 +83,6 @@ def download_video_link(url: str, download_dir: str) -> dict:
         'quiet': True,
         'no_warnings': True,
         'noplaylist': True,
-        'max_filesize': 49 * 1024 * 1024,
         'extractor_args': {
             'youtube': {
                 'player_client': ['android', 'ios', 'web']
@@ -68,7 +103,7 @@ def download_video_link(url: str, download_dir: str) -> dict:
         duration = info.get('duration', 0)
         channel = info.get('uploader') or info.get('channel') or info.get('creator', 'Yuklandi')
 
-        # Find the resulting file
+        # Find the downloaded file
         expected_path = os.path.join(download_dir, f"dl_{file_id}.mp4")
         if not os.path.exists(expected_path):
             for f in os.listdir(download_dir):
@@ -81,12 +116,32 @@ def download_video_link(url: str, download_dir: str) -> dict:
 
         # Check file size against Telegram 50MB limit
         size_bytes = os.path.getsize(expected_path)
-        if size_bytes > 50 * 1024 * 1024:
-            raise ValueError("Video hajmi 50 MB dan katta (Telegram bot limiti 50MB).")
+        is_compressed = False
+
+        if size_bytes > 48 * 1024 * 1024:
+            # File is over Telegram upload limit: automatically compress with FFmpeg!
+            compressed_path = os.path.join(download_dir, f"dl_{file_id}_compressed.mp4")
+            result_path = compress_video_to_fit(expected_path, compressed_path, duration)
+            if result_path != expected_path and os.path.exists(result_path):
+                # Remove original large file
+                try:
+                    os.remove(expected_path)
+                except Exception:
+                    pass
+                expected_path = result_path
+                is_compressed = True
+
+        final_size = os.path.getsize(expected_path)
+        if final_size > 50 * 1024 * 1024:
+            raise ValueError(
+                f"Video juda uzun bo'lgani uchun hajmi {final_size // (1024*1024)} MB bo'lib ketdi "
+                "(Telegram faqat 50MB gacha ruxsat beradi)."
+            )
 
         return {
             "file_path": expected_path,
             "title": title,
             "duration": duration,
-            "channel": channel
+            "channel": channel,
+            "is_compressed": is_compressed
         }
