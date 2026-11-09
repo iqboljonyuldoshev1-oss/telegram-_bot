@@ -10,9 +10,6 @@ URL_PATTERN = re.compile(
     re.IGNORECASE
 )
 
-# Max limit requested: 100 MB
-MAX_ALLOWED_SIZE_BYTES = 100 * 1024 * 1024
-
 def is_downloadable_url(text: str) -> bool:
     if not text:
         return False
@@ -29,16 +26,16 @@ def extract_url(text: str) -> str | None:
 
 def compress_video_to_fit(input_path: str, output_path: str, duration: int) -> str:
     """
-    Compresses videos up to 100MB so they fit Telegram's delivery buffer (~46-48MB).
+    Compresses any video using adaptive bitrate so it fits Telegram's 48MB delivery buffer.
     """
     ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
     dur = max(10, duration)
     target_mb = 45.0
     total_bitrate_kbps = (target_mb * 8192) / dur
     audio_bitrate_kbps = 96 if dur < 900 else 64
-    video_bitrate_kbps = max(140, int(total_bitrate_kbps - audio_bitrate_kbps))
+    video_bitrate_kbps = max(120, int(total_bitrate_kbps - audio_bitrate_kbps))
 
-    scale_filter = r"scale=-2:min(720\,ih)" if dur < 300 else r"scale=-2:min(480\,ih)"
+    scale_filter = r"scale=-2:min(720\,ih)" if dur < 240 else r"scale=-2:min(480\,ih)"
 
     cmd = [
         ffmpeg_exe, "-y",
@@ -62,20 +59,20 @@ def compress_video_to_fit(input_path: str, output_path: str, duration: int) -> s
 
 def download_video_link(url: str, download_dir: str) -> dict:
     """
-    Downloads video from YouTube, Instagram, TikTok up to 100MB.
-    Automatically compresses files between 48MB-100MB so Telegram can deliver them!
+    Downloads video from YouTube, Instagram, TikTok without artificial size limits.
+    Any video is automatically adapted so Telegram can send it directly.
     """
     os.makedirs(download_dir, exist_ok=True)
     file_id = uuid.uuid4().hex[:10]
     outtmpl = os.path.join(download_dir, f"dl_{file_id}.%(ext)s")
     ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
 
-    # Formats targeting up to 100MB (1080p, 720p, 480p)
+    # No artificial max_filesize limit: allow any video
     ydl_opts = {
         'format': (
-            'bestvideo[height<=1080][filesize_approx<95M]+bestaudio/'
-            'best[height<=1080][filesize_approx<95M]/'
-            'bestvideo[height<=720][filesize_approx<95M]+bestaudio/'
+            'bestvideo[height<=720][filesize_approx<45M]+bestaudio/'
+            'best[height<=720][filesize_approx<45M]/'
+            'bestvideo[height<=720]+bestaudio/'
             'best[height<=720]/'
             'bestvideo[height<=480]+bestaudio/'
             'best[height<=480]/'
@@ -87,7 +84,6 @@ def download_video_link(url: str, download_dir: str) -> dict:
         'quiet': True,
         'no_warnings': True,
         'noplaylist': True,
-        'max_filesize': MAX_ALLOWED_SIZE_BYTES, # 100 MB
         'extractor_args': {
             'youtube': {
                 'player_client': ['android', 'ios', 'web']
@@ -122,7 +118,7 @@ def download_video_link(url: str, download_dir: str) -> dict:
         orig_size = os.path.getsize(expected_path)
         is_compressed = False
 
-        # If file is larger than Telegram bot upload limit (48MB), compress it!
+        # If file is larger than Telegram bot upload limit (48MB), adaptively compress it
         if orig_size > 48 * 1024 * 1024:
             compressed_path = os.path.join(download_dir, f"dl_{file_id}_compressed.mp4")
             result_path = compress_video_to_fit(expected_path, compressed_path, duration)
@@ -133,13 +129,6 @@ def download_video_link(url: str, download_dir: str) -> dict:
                     pass
                 expected_path = result_path
                 is_compressed = True
-
-        final_size = os.path.getsize(expected_path)
-        if final_size > 50 * 1024 * 1024:
-            raise ValueError(
-                f"Video hajmi 100 MB dan ham katta ({orig_size // (1024*1024)} MB). "
-                "Iltimos, 100 MB gacha bo'lgan videolarni yuboring."
-            )
 
         return {
             "file_path": expected_path,
