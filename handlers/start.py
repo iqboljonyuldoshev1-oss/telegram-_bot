@@ -13,13 +13,12 @@ async def cmd_start(message: Message):
 
     text = (
         "👋 <b>Assalomu alaykum!</b>\n\n"
-        "Men sizning rasmlaringiz va videolaringizdan <b>chiroyli romantik videolar</b> yaratib beruvchi botman! 🎬✨\n\n"
-        "💖 <b>Asosiy yangi imkoniyatlar:</b>\n"
-        "🌹 <b>Romantik musiqalar:</b> Bot ichida maxsus mayin pianino, sokin romantika va akustik sevgi kuylari tayyor turibdi (yoki o'zingiz ham musiqa yuborishingiz mumkin)!\n"
-        "🎥 <b>Videolarni qabul qilish:</b> Endi nafaqat rasmlar, balki qisqa videolarni ham yuborishingiz mumkin! Bot ularni bir-biriga chiroyli ulab beradi.\n"
-        "🚫 <b>Sun'iy intellekt buzilishlarisiz:</b> Rasmlar va videolaringiz asl tiniqligi saqlanadi.\n"
-        "📱 <b>Reels/TikTok (9:16) va boshqa formatlar.</b>\n\n"
-        "🚀 <b>Boshlash uchun:</b> Menga xohlagan rasmlaringiz yoki videolaringizni yuboring!"
+        "Men bir nechta rasmlar va videolarni <b>bir-biriga ulab, ajoyib video</b> tayyorlab beruvchi botman! 🎬✨\n\n"
+        "🌟 <b>Qanday ishlaydi:</b>\n"
+        "1️⃣ Menga <b>bir nechta rasm</b> (yoki video) yuboring (masalan: 3 ta, 5 ta, 10 ta albom qilib).\n"
+        "2️⃣ Bot barcha yuborilgan rasmlarni qabul qilib, ularni bir-biriga ulaydi va foniga yoqimli romantik musiqa qo'shib video qilib beradi!\n"
+        "3️⃣ Tayyor videoni qabul qilasiz va xohlasangiz uslubini, musiqasini yoki o'lchamini bitta tugma bilan o'zgartirishingiz mumkin.\n\n"
+        "🚀 <b>Boshlash uchun:</b> Menga hoziroq bir nechta rasm yuboring!"
     )
     await message.answer(text, parse_mode="HTML")
 
@@ -27,11 +26,10 @@ async def cmd_start(message: Message):
 @router.message(Command("help"))
 async def cmd_help(message: Message):
     text = (
-        "📖 <b>Botdan foydalanish yo'riqnomasi:</b>\n\n"
-        "1️⃣ Menga o'zingiz xohlagan <b>rasmlar yoki videolarni</b> yuboring (kamida 1-2 ta).\n"
-        "2️⃣ <b>«🎵 Musiqa»</b> tugmasi orqali romantik kuylardan birini tanlang (yoki o'zingiz MP3 yuboring).\n"
-        "3️⃣ Video uslubi va formatini (9:16, 16:9, 1:1) tanlang.\n"
-        "4️⃣ <b>«🎬 Videoni yaratish»</b> tugmasini bosing va tayyor rolikni qabul qiling!\n\n"
+        "📖 <b>Qo'llanma:</b>\n\n"
+        "• <b>Bir nechta rasm yuborish:</b> Galereyangizdan bir nechta (kamida 2 ta) rasmni tanlab, bitta albom qilib botga yuboring.\n"
+        "• Bot barcha rasmlarni avtomatik bir-biriga ulab videoni tayyorlaydi.\n"
+        "• Agar xohlasangiz, o'zingiz yoqtirgan MP3 musiqani ham yuborishingiz mumkin.\n\n"
         "🔄 Yangitdan boshlash uchun: /reset"
     )
     await message.answer(text, parse_mode="HTML")
@@ -41,4 +39,4 @@ async def cmd_help(message: Message):
 async def cmd_reset(message: Message):
     user_id = message.from_user.id
     session_manager.get(user_id).clear()
-    await message.answer("🗑 Barcha yuklangan fayllar va sozlamalar tozalandi. Yangi rasm yoki videolarni yuborishingiz mumkin.")
+    await message.answer("🗑 Barcha yuklangan fayllar tozalandi. Yangi rasmlarni yuborishingiz mumkin.")

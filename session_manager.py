@@ -1,4 +1,5 @@
 import shutil
+import asyncio
 from pathlib import Path
 from config import TEMP_DIR, BASE_DIR
 
@@ -14,13 +15,14 @@ class UserSession:
         self.user_id = user_id
         # List of dicts: [{"type": "photo"|"video", "path": str}]
         self.media_items: list[dict] = []
-        # Built-in track key: romantic_piano, acoustic_love, soft_romance, or 'none'
         self.music_choice: str = "romantic_piano"
         self.custom_audio: str | None = None
         self.style: str = "ken_burns"
         self.aspect: str = "9:16"
-        self.duration: float = 3.0
+        self.duration: float = 2.5
         self.control_msg_id: int | None = None
+        self.debounce_task: asyncio.Task | None = None
+        self.is_rendering: bool = False
 
         self.user_dir = TEMP_DIR / str(user_id)
         self.user_dir.mkdir(exist_ok=True)
@@ -45,17 +47,21 @@ class UserSession:
 
     @property
     def photo_count(self) -> int:
-        return sum(1 for m in self.media_items if m["type"] == "photo")
+        return sum(1 for m in self.media_items if m.get("type") == "photo")
 
     @property
     def video_count(self) -> int:
-        return sum(1 for m in self.media_items if m["type"] == "video")
+        return sum(1 for m in self.media_items if m.get("type") == "video")
 
     @property
     def total_count(self) -> int:
         return len(self.media_items)
 
     def clear(self):
+        if self.debounce_task and not self.debounce_task.done():
+            self.debounce_task.cancel()
+        self.debounce_task = None
+        self.is_rendering = False
         self.media_items.clear()
         self.custom_audio = None
         self.music_choice = "romantic_piano"

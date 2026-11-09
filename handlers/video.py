@@ -17,27 +17,37 @@ from keyboards import (
 router = Router()
 
 
-@router.callback_query(F.data == "btn_render")
-async def cb_render_video(callback: CallbackQuery, bot: Bot):
-    user_id = callback.from_user.id
+async def do_render_and_send(user_id: int, chat_id: int, bot: Bot) -> bool:
+    """Core function to render all collected photos and videos into one seamless video"""
     session = session_manager.get(user_id)
 
-    if session.total_count == 0:
-        await callback.answer(
-            "⚠️ Video yaratish uchun kamida 1 ta rasm yoki video yuborishingiz kerak!",
-            show_alert=True
-        )
-        return
+    if session.total_count < 2:
+        return False
 
-    await callback.answer()
-    status_msg = await callback.message.answer(
-        "⏳ <b>Romantik video montaj qilinmoqda...</b>\n"
-        "<i>Rasmlar va videolar birlashtirilmoqda, o'tish effektlari va romantik musiqa ulanmoqda. "
-        "Biroz kuting...</i>",
+    if session.is_rendering:
+        return False
+
+    session.is_rendering = True
+
+    status_msg = await bot.send_message(
+        chat_id=chat_id,
+        text=(
+            f"⏳ <b>{session.total_count} ta rasm/media qabul qilindi!</b>\n"
+            f"<i>Ular bir-biriga ulanmoqda, romantik musiqa va o'tish effektlari bilan "
+            f"yuqori sifatli video tayyorlanmoqda. Biroz kuting...</i>"
+        ),
         parse_mode="HTML"
     )
 
     output_file = str(session.user_dir / f"result_{user_id}.mp4")
+
+    # Adaptive duration for large albums
+    item_count = session.total_count
+    slide_dur = session.duration
+    if item_count >= 10:
+        slide_dur = min(session.duration, 2.0)
+    elif item_count >= 5:
+        slide_dur = min(session.duration, 2.5)
 
     try:
         # Run rendering in thread pool to prevent blocking asyncio
@@ -48,41 +58,73 @@ async def cb_render_video(callback: CallbackQuery, bot: Bot):
             audio_path=session.effective_audio_path,
             aspect_ratio=session.aspect,
             style=session.style,
-            slide_duration=session.duration,
+            slide_duration=slide_dur,
             transition_duration=0.6,
             fps=30
         )
 
-        music_name = "🎧 Shaxsiy musiqa" if session.music_choice == "custom" else ROMANTIC_TRACKS.get(session.music_choice, "Romantik")
+        music_name = "🎧 Shaxsiy musiqa" if session.music_choice == "custom" else ROMANTIC_TRACKS.get(session.music_choice, "🌹 Mayin Pianino")
 
         caption = (
-            f"🎬 <b>Sizning romantik videongiz tayyor bo'ldi! ✨</b>\n\n"
+            f"🎬 <b>{session.total_count} ta rasmingiz bir-biriga ulanib, video tayyor bo'ldi! ✨</b>\n\n"
             f"📸 <b>Rasmlar:</b> {session.photo_count} ta\n"
             f"🎥 <b>Videolar:</b> {session.video_count} ta\n"
             f"🎵 <b>Musiqa:</b> {music_name}\n"
             f"🎨 <b>Uslub:</b> {STYLE_NAMES.get(session.style, session.style)}\n"
             f"📐 <b>O'lcham:</b> {ASPECT_NAMES.get(session.aspect, session.aspect)}\n\n"
-            f"<i>Yana yangi video yaratish uchun shunchaki yangi rasmlar yoki videolar yuboring!</i>"
+            f"<i>Boshqa musiqada yoki boshqa uslubda qayta yaratish uchun pastdagi tugmalardan foydalaning:</i>"
+        )
+
+        keyboard = get_control_keyboard(
+            style=session.style,
+            aspect=session.aspect,
+            duration=str(session.duration),
+            total_count=session.total_count,
+            music_choice=session.music_choice,
+            has_custom_audio=(session.custom_audio is not None)
         )
 
         video_input = FSInputFile(output_file)
         await bot.send_video(
-            chat_id=callback.message.chat.id,
+            chat_id=chat_id,
             video=video_input,
             caption=caption,
+            reply_markup=keyboard,
             parse_mode="HTML",
             supports_streaming=True
         )
-        await status_msg.delete()
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
+        return True
 
     except Exception as e:
         await status_msg.edit_text(f"❌ Videoni tayyorlashda xatolik yuz berdi:\n<code>{str(e)}</code>", parse_mode="HTML")
+        return False
     finally:
+        session.is_rendering = False
         if os.path.exists(output_file):
             try:
                 os.remove(output_file)
             except Exception:
                 pass
+
+
+@router.callback_query(F.data == "btn_render")
+async def cb_render_video(callback: CallbackQuery, bot: Bot):
+    user_id = callback.from_user.id
+    session = session_manager.get(user_id)
+
+    if session.total_count < 2:
+        await callback.answer(
+            "⚠️ Video yaratish uchun kamida 2 ta rasm yoki video kerak!",
+            show_alert=True
+        )
+        return
+
+    await callback.answer()
+    await do_render_and_send(user_id, callback.message.chat.id, bot)
 
 
 @router.callback_query(F.data == "menu_music")
@@ -188,8 +230,8 @@ async def cb_clear(callback: CallbackQuery):
     session.clear()
     await callback.answer("🗑 Tozalandi!", show_alert=True)
     await callback.message.edit_text(
-        "🗑 Barcha yuklangan fayllar tozalandi.\n\n"
-        "Yangi romantik video yaratish uchun menga rasmlar yoki videolar yuboring!"
+        "🗑 Barcha yuklangan rasmlar tozalandi.\n\n"
+        "Yangi video yaratish uchun bir nechta rasm yuboring!"
     )
 
 
