@@ -13,10 +13,10 @@ async def cmd_start(message: Message):
 
     text = (
         "👋 <b>Assalomu alaykum!</b>\n\n"
-        "Men <b>YouTube videolarini yuklovchi</b> va <b>rasmlardan video yaratuvchi</b> universal botman! 🎬⚡️\n\n"
+        "Men <b>_yuklaydi_bot</b> — YouTube videolarini yuklovchi va rasmlardan video yaratuvchi botman! 🎬⚡️\n\n"
         "🚀 <b>Asosiy imkoniyatlar:</b>\n\n"
-        "1️⃣ <b>YouTube dan video yuklash (@yuklaydi_bot kabi):</b>\n"
-        "• Menga istalgan <b>YouTube</b> yoki <b>YouTube Shorts</b> havolasini (linkini) yuboring.\n"
+        "1️⃣ <b>YouTube dan video yuklash:</b>\n"
+        "• Menga istalgan <b>YouTube</b> yoki <b>Shorts</b> havolasini yuboring.\n"
         "• Bot videoni eng yuqori sifatda bir necha soniyada sizga tashlab beradi!\n\n"
         "2️⃣ <b>Rasmlardan video tayyorlash:</b>\n"
         "• Menga bir nechta rasm yuboring (albom qilib).\n"

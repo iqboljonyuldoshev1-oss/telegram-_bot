@@ -72,7 +72,7 @@ async def do_render_and_send(user_id: int, chat_id: int, bot: Bot) -> bool:
             f"🎵 <b>Musiqa:</b> {music_name}\n"
             f"🎨 <b>Uslub:</b> {STYLE_NAMES.get(session.style, session.style)}\n"
             f"📐 <b>O'lcham:</b> {ASPECT_NAMES.get(session.aspect, session.aspect)}\n\n"
-            f"<i>Boshqa musiqada yoki boshqa uslubda qayta yaratish uchun pastdagi tugmalardan foydalaning:</i>"
+            f"✨ <i><b>_yuklaydi_bot</b> orqali tayyorlandi.</i>"
         )
 
         keyboard = get_control_keyboard(

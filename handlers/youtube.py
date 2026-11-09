@@ -50,7 +50,7 @@ async def handle_youtube_link(message: Message, bot: Bot):
             f"🎬 <b>{title}</b>\n\n"
             f"⏱ <b>Davomiyligi:</b> {duration_str}\n"
             f"👤 <b>Kanal:</b> {channel}\n\n"
-            f"📥 <i>@vdshablone_bot orqali yuklab olindi.</i>"
+            f"📥 <i><b>_yuklaydi_bot</b> orqali yuklab olindi.</i>"
         )
 
         video_input = FSInputFile(file_path)
@@ -85,3 +85,4 @@ async def handle_youtube_link(message: Message, bot: Bot):
                 os.remove(data["file_path"])
             except Exception:
                 pass
+

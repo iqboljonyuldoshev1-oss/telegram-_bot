@@ -75,3 +75,4 @@ def download_youtube_video(url: str, download_dir: str) -> dict:
             "channel": channel,
             "thumbnail": thumbnail
         }
+
