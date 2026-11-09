@@ -29,7 +29,7 @@ async def handle_media_link(message: Message, bot: Bot):
     session = session_manager.get(user_id)
 
     status_msg = await message.reply(
-        "⏳ <b>Video yuklab olinmoqda...</b>\n"
+        "⏳ <b>Video yuklab olinmoqda (100 MB gacha ruxsat)...</b>\n"
         "<i>Biroz kuting, hozir video sizga yuboriladi...</i>",
         parse_mode="HTML"
     )
@@ -45,11 +45,15 @@ async def handle_media_link(message: Message, bot: Bot):
         title = data.get("title", "Video")
         channel = data.get("channel", "Yuklandi")
         duration_str = format_duration(data.get("duration", 0))
+        orig_mb = data.get("orig_size_mb", 0)
+
+        size_note = f"📦 <b>Hajmi:</b> {orig_mb} MB\n" if orig_mb else ""
 
         caption = (
             f"🎬 <b>{title}</b>\n\n"
             f"⏱ <b>Davomiyligi:</b> {duration_str}\n"
-            f"👤 <b>Kanal/Manba:</b> {channel}\n\n"
+            f"👤 <b>Kanal/Manba:</b> {channel}\n"
+            f"{size_note}\n"
             f"📥 <i><b>_yuklaydi_bot</b> orqali yuklab olindi.</i>"
         )
 
@@ -68,11 +72,10 @@ async def handle_media_link(message: Message, bot: Bot):
 
     except Exception as e:
         error_msg = str(e)
-        if "50mb" in error_msg.lower() or "50 mb" in error_msg.lower() or "juda uzun" in error_msg.lower():
+        if "100" in error_msg.lower() or "max_filesize" in error_msg.lower() or "katta" in error_msg.lower():
             await status_msg.edit_text(
-                "❌ <b>Kechirasiz, video davomiyligi juda uzun!</b>\n"
-                "Telegram botlari orqali maksimal 50 MB gacha bo'lgan videolarni yuborish mumkin.\n"
-                "<i>Qisqaroq video yoki YouTube Shorts havolasini yuborib ko'ring.</i>",
+                "❌ <b>Kechirasiz, video hajmi 100 MB dan ham katta!</b>\n"
+                "Iltimos, hajmi 100 MB gacha bo'lgan videolarni yuboring.",
                 parse_mode="HTML"
             )
         else:
